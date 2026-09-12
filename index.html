@@ -23,198 +23,40 @@
 }
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Breakout Scanner (200) - AUTO PERMANENT ON + Telegram</title>
+<title>Breakout Scanner 200 - Auto ON + Telegram</title>
 <style>
 body{background:#0f0f12;color:#fff;font-family:system-ui;margin:0;padding:10px}
 header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#1a1a1f;border-radius:8px}
-#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;background:#7c5cfc;color:white}
+#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;background:#7c5cfc;color:#fff}
 #auto-btn.active{background:#7c5cfc}
-#refresh-btn{padding:10px 15px;border:none;border-radius:8px;background:#7c5cfc;color:white;font-weight:bold;margin-left:8px}
+#refresh-btn{padding:10px 15px;border:none;border-radius:8px;background:#7c5cfc;color:#fff;font-weight:bold;margin-left:8px}
 table{width:100%;border-collapse:collapse;margin-top:12px;background:#1a1a1f;border-radius:8px;overflow:hidden}
 th{padding:12px;text-align:left;color:#888;font-size:0.8rem;background:#222}
 td{padding:12px;border-top:1px solid #2a2a3a}
 .badge-bull{color:#00ff88;background:rgba(0,255,136,0.1);padding:4px 8px;border-radius:4px;border:1px solid #00ff88}
 .badge-bear{color:#ff4444;background:rgba(255,68,68,0.1);padding:4px 8px;border-radius:4px;border:1px solid #ff4444}
 #status-bar{margin-top:10px;color:#aaa;font-size:0.85rem;text-align:center}
-#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px;border-radius:10px;border:1px solid #333;z-index:100}
-.symbol-col{font-weight:bold}
+#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px;border-radius:10px;border:1px solid #333}
 </style>
 </head>
 <body>
 <header>
-<div>🔍 Breakout Scanner (200)<br><span style="color:#7c5cfc;font-size:0.9em">AUTO PERMANENT ON + Telegram</span></div>
-<div>
-<button id="auto-btn" class="active">Auto: ON (90s)</button>
-<button id="refresh-btn" onclick="startScan()">SCAN</button>
-</div>
+<div>🔍 Scanner (200)<br><span style="color:#7c5cfc">AUTO PERMANENT ON + Telegram</span></div>
+<div><button id="auto-btn" class="active">Auto: ON (90s)</button><button id="refresh-btn" onclick="startScan()">SCAN</button></div>
 </header>
-<div id="status-bar">Auto-scanning every 90 seconds... (Permanent ON + Telegram)</div>
-<div id="loader">Scanning Top 200 Futures... (Please wait)</div>
-<div id="empty-msg" style="display:none;text-align:center;padding:20px;color:#666">No breakouts found this scan</div>
+<div id="status-bar">Auto-scanning every 90s... Bulk FAPI - Permanent</div>
+<div id="loader">Scanning...</div>
+<div id="empty-msg" style="display:none;text-align:center;padding:20px;color:#666">No breakouts</div>
 <div id="error-msg" style="display:none;text-align:center;padding:20px;color:#f44"></div>
-<table>
-<thead><tr><th>COIN</th><th>PRICE</th><th>24H %</th><th>SIGNAL</th></tr></thead>
-<tbody id="results-body"></tbody>
-</table>
-
+<table><thead><tr><th>COIN</th><th>PRICE</th><th>24H %</th><th>SIGNAL</th></tr></thead><tbody id="results-body"></tbody></table>
 <script>
-let autoInterval = null;
-let isAutoOn = true;
-
-window.onload = () => {
-    const btn = document.getElementById('auto-btn');
-    const status = document.getElementById('status-bar');
-    isAutoOn = true;
-    btn.innerText = "Auto: ON (90s)";
-    btn.classList.add('active');
-    status.innerText = "Auto-scanning every 90 seconds... (Permanent ON + Telegram)";
-    startScan();
-    autoInterval = setInterval(startScan, 90000);
-};
-
-function toggleAuto() {
-    const btn = document.getElementById('auto-btn');
-    const status = document.getElementById('status-bar');
-    if (isAutoOn) {
-        clearInterval(autoInterval);
-        autoInterval = null;
-        isAutoOn = false;
-        btn.innerText = "Auto: OFF";
-        btn.classList.remove('active');
-        status.innerText = "Auto-scan stopped.";
-    } else {
-        isAutoOn = true;
-        btn.innerText = "Auto: ON (90s)";
-        btn.classList.add('active');
-        status.innerText = "Auto-scanning every 90 seconds... (Permanent ON + Telegram)";
-        startScan();
-        autoInterval = setInterval(startScan, 90000);
-    }
-}
-document.getElementById('auto-btn').onclick = toggleAuto;
-
-async function sendToTelegram(signal) {
-    try {
-        // Send to backend which forwards to Telegram - fixes CORS and keeps token secret
-        const res = await fetch('/api/alert', {
-            method: 'POST',
-            headers: {'Content-Type': 'application/json'},
-            body: JSON.stringify({
-                symbol: signal.symbol,
-                price: signal.price,
-                change: signal.change,
-                type: signal.type,
-                level: signal.level || signal.price
-            })
-        });
-        const data = await res.json();
-        console.log(`Telegram ${signal.symbol}:`, data);
-        return data;
-    } catch (e) {
-        console.error("Telegram send failed", e);
-        return null;
-    }
-}
-
-async function startScan() {
-    const btn = document.getElementById('refresh-btn');
-    const loader = document.getElementById('loader');
-    const tbody = document.getElementById('results-body');
-    const emptyMsg = document.getElementById('empty-msg');
-    const errorMsg = document.getElementById('error-msg');
-    const statusBar = document.getElementById('status-bar');
-    if (isAutoOn) btn.disabled = true;
-    loader.style.display = 'block';
-    loader.innerText = "Scanning Top 200 Futures... (Please wait)";
-    tbody.innerHTML = '';
-    emptyMsg.style.display = 'none';
-    errorMsg.style.display = 'none';
-    const startTime = Date.now();
-    try {
-        const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json();
-        const allCoins = data.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
-        const topCoins = allCoins.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0,200);
-        loader.innerText = `Scanning ${topCoins.length} coins...`;
-        let signals = [];
-        for (let i = 0; i < topCoins.length; i += 10) {
-            const batch = topCoins.slice(i, i + 10);
-            const promises = batch.map(coin => checkBreakout(coin));
-            const results = await Promise.all(promises);
-            results.forEach(r => { if (r) signals.push(r); });
-            const progress = Math.min(100, Math.floor((i / topCoins.length)*100));
-            loader.innerText = `Scanning... ${progress}% - Found ${signals.length}`;
-            await new Promise(r => setTimeout(r, 250));
-        }
-        loader.style.display = 'none';
-        const scanTime = ((Date.now() - startTime)/1000).toFixed(1);
-        if (isAutoOn) statusBar.innerText = `Last scan: ${scanTime}s ago • ${signals.length} signals • Auto: ON (90s) - Permanent + Telegram`;
-
-        // SEND TO TELEGRAM FOR EACH SIGNAL FOUND ON WEBSITE
-        for (const sig of signals) {
-            await sendToTelegram(sig);
-            await new Promise(r => setTimeout(r, 500)); // avoid spam
-        }
-
-        if (signals.length === 0) {
-            emptyMsg.style.display = 'block';
-        } else {
-            signals.sort((a, b) => b.strength - a.strength);
-            signals.forEach(signal => {
-                const row = document.createElement('tr');
-                const changeNum = parseFloat(signal.change) || 0;
-                const changeColor = changeNum >= 0 ? '#00ff88' : '#ff6b6b';
-                const badgeClass = signal.type === 'bullish' ? 'badge-bull' : 'badge-bear';
-                const badgeText = signal.type === 'bullish' ? '▲ BREAKOUT' : '▼ DUMP';
-                row.innerHTML = `<td class="symbol-col">${signal.symbol.replace('USDT','')}</td><td>$${parseFloat(signal.price).toFixed(3)}</td><td style="color:${changeColor}">${changeNum>=0?'+':''}${changeNum.toFixed(2)}%</td><td><span class="${badgeClass}">${badgeText}</span></td>`;
-                tbody.appendChild(row);
-            });
-        }
-    } catch (err) {
-        console.error(" Scan failed:", err);
-        errorMsg.innerText = `Error: ${err.message}. Try again.`;
-        errorMsg.style.display = 'block';
-        loader.style.display = 'none';
-    } finally {
-        if (!isAutoOn) btn.disabled = false;
-    }
-}
-
-async function checkBreakout(coin) {
-    const symbol = coin.symbol;
-    try {
-        const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=20`);
-        if (!kRes.ok) return null;
-        const klines = await kRes.json();
-        if (klines.length < 5) return null;
-        const prices = klines.map(k => parseFloat(k[4]));
-        const highs = klines.map(k => parseFloat(k[2]));
-        const lows = klines.map(k => parseFloat(k[3]));
-        const threshold = 0.002;
-        const currentPrice = prices[prices.length-1];
-        const prevHighs = [highs[highs.length-2], highs[highs.length-3], highs[highs.length-4]];
-        const prevLows = [lows[lows.length-2], lows[lows.length-3], lows[lows.length-4]];
-        const maxPrevHigh = Math.max(...prevHighs);
-        const minPrevLow = Math.min(...prevLows);
-        let type = null;
-        let strength = 0;
-        let breakoutLevel = 0;
-        if (currentPrice > maxPrevHigh * (1 + threshold)) {
-            type = 'bullish';
-            strength = (currentPrice - maxPrevHigh) / maxPrevHigh;
-            breakoutLevel = maxPrevHigh;
-        } else if (currentPrice < minPrevLow * (1 - threshold)) {
-            type = 'bearish';
-            strength = (minPrevLow - currentPrice) / minPrevLow;
-            breakoutLevel = minPrevLow;
-        }
-        if (type) {
-            return { symbol: symbol, price: coin.lastPrice, change: coin.priceChangePercent, type: type, strength: strength, level: breakoutLevel };
-        }
-        return null;
-    } catch (e) { return null; }
-}
+let autoInterval=null;let isAutoOn=true;
+window.onload=()=>{document.getElementById('auto-btn').innerText="Auto: ON (90s)";startScan();autoInterval=setInterval(startScan,90000);};
+function toggleAuto(){const btn=document.getElementById('auto-btn');const status=document.getElementById('status-bar');if(isAutoOn){clearInterval(autoInterval);isAutoOn=false;btn.innerText="Auto: OFF";status.innerText="Stopped";}else{isAutoOn=true;btn.innerText="Auto: ON (90s)";status.innerText="Auto-scanning...";startScan();autoInterval=setInterval(startScan,90000);}}
+document.getElementById('auto-btn').onclick=toggleAuto;
+async function sendToTelegram(signal){try{const res=await fetch('/api/alert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:signal.symbol,price:signal.price,change:signal.change,type:signal.type,level:signal.level})});const data=await res.json();console.log("Telegram:",signal.symbol,data);return data;}catch(e){console.error(e);}}
+async function startScan(){const loader=document.getElementById('loader');const tbody=document.getElementById('results-body');const emptyMsg=document.getElementById('empty-msg');const errorMsg=document.getElementById('error-msg');const statusBar=document.getElementById('status-bar');loader.style.display='block';tbody.innerHTML='';emptyMsg.style.display='none';errorMsg.style.display='none';const start=Date.now();try{const res=await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');const data=await res.json();const top=data.filter(t=>t.symbol.endsWith('USDT')).sort((a,b)=>parseFloat(b.quoteVolume)-parseFloat(a.quoteVolume)).slice(0,200);let signals=[];for(let i=0;i<top.length;i+=10){const batch=top.slice(i,i+10);const results=await Promise.all(batch.map(c=>checkBreakout(c)));results.forEach(r=>{if(r)signals.push(r);});loader.innerText=`Scanning ${Math.floor(i/top.length*100)}% - ${signals.length} found`;await new Promise(r=>setTimeout(r,200));}loader.style.display='none';statusBar.innerText=`Last: ${((Date.now()-start)/1000).toFixed(1)}s ago • ${signals.length} signals • Auto ON - Permanent + Telegram`;for(const s of signals){await sendToTelegram(s);await new Promise(r=>setTimeout(r,400));}if(signals.length==0)emptyMsg.style.display='block';else{signals.sort((a,b)=>b.strength-a.strength);signals.forEach(sig=>{const row=document.createElement('tr');const ch=parseFloat(sig.change)||0;const col=ch>=0?'#00ff88':'#ff6b6b';const badge=sig.type=='bullish'?'badge-bull':'badge-bear';const txt=sig.type=='bullish'?'▲ BREAKOUT':'▼ DUMP';row.innerHTML=`<td><b>${sig.symbol.replace('USDT','')}</b></td><td>$${parseFloat(sig.price).toFixed(3)}</td><td style="color:${col}">${ch>=0?'+':''}${ch.toFixed(2)}%</td><td><span class="${badge}">${txt}</span></td>`;tbody.appendChild(row);});}}catch(err){console.error(err);errorMsg.innerText=err.message;errorMsg.style.display='block';loader.style.display='none';}}
+async function checkBreakout(coin){try{const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${coin.symbol}&interval=4h&limit=20`);if(!r.ok)return null;const kl=await r.json();if(kl.length<5)return null;const prices=kl.map(k=>parseFloat(k[4]));const highs=kl.map(k=>parseFloat(k[2]));const lows=kl.map(k=>parseFloat(k[3]));const th=0.002;const cur=prices[prices.length-1];const maxH=Math.max(...[highs[highs.length-2],highs[highs.length-3],highs[highs.length-4]]);const minL=Math.min(...[lows[lows.length-2],lows[lows.length-3],lows[lows.length-4]]);let type=null,str=0,lev=0;if(cur>maxH*(1+th)){type='bullish';str=(cur-maxH)/maxH;lev=maxH;}else if(cur<minL*(1-th)){type='bearish';str=(minL-cur)/minL;lev=minL;}if(type)return{symbol:coin.symbol,price:coin.lastPrice,change:coin.priceChangePercent,type:type,strength:str,level:lev};return null;}catch(e){return null;}}
 </script>
 <script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
 </html>

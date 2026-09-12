@@ -1,239 +1,195 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Futures Breakout Scanner (Top 200)</title>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-zoom@2.0.1/dist/chartjs-plugin-zoom.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
-    <style>
-        :root { --bg: #0b0e11; --card: #1e2329; --text: #eaecef; --accent: #0ecb81; --danger: #f6465d; --purple: #a55eea; --border: #2b3139; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: var(--bg); color: var(--text); margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
-        header { padding: 12px; background: var(--card); border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 100; display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-        h1 { margin: 0; font-size: 1rem; color: var(--purple); white-space: nowrap; }
-        .controls { display: flex; gap: 8px; }
-        button { padding: 8px 12px; border: none; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 0.8rem; color: white; transition: all 0.2s; }
-        #refresh-btn { background: var(--purple); }
-        #auto-btn { background: #2b3139; border: 1px solid var(--border); }
-        #auto-btn.active { background: var(--accent); color: black; box-shadow: 0 0 10px rgba(14, 203, 129, 0.4); }
-        button:disabled { opacity: 0.5; }
-        #main-content { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 15px; }
-        .table-container { background: var(--card); border-radius: 8px; overflow: hidden; border: 1px solid var(--border); }
-        table { width: 100%; border-collapse: collapse; }
-        th { text-align: left; padding: 12px; background: #252a33; color: #848e9c; font-size: 0.75rem; text-transform: uppercase; border-bottom: 1px solid var(--border); position: sticky; top: 0; }
-        td { padding: 12px; border-bottom: 1px solid var(--border); font-size: 0.9rem; cursor: pointer; }
-        tr:last-child td { border-bottom: none; }
-        tr:active { background: rgba(165, 94, 234, 0.1); }
-        .symbol-col { font-weight: bold; color: #fff; }
-        .price-col { font-family: monospace; }
-        .change-col { font-weight: bold; }
-        .signal-col { text-align: center; }
-        .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.7rem; font-weight: bold; text-transform: uppercase; display: inline-block; }
-        .badge-bull { background: rgba(14, 203, 129, 0.2); color: var(--accent); border: 1px solid var(--accent); }
-        .badge-bear { background: rgba(246, 70, 93, 0.2); color: var(--danger); border: 1px solid var(--danger); }
-        #chart-view { display: none; flex-direction: column; height: 100%; position: fixed; top: 0; left: 0; width: 100%; background: var(--bg); z-index: 200; }
-        .chart-header { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; padding: 12px; background: var(--card); border-bottom: 1px solid var(--border); }
-        .back-btn { background: var(--border); color: white; border: none; padding: 8px 12px; border-radius: 4px; cursor: pointer; }
-        .chart-box { background: var(--card); padding: 10px; border-radius: 8px; height: calc(100vh - 140px); position: relative; border: 1px solid var(--border); margin: 15px; }
-        .chart-hint { position: absolute; top: 10px; left: 10px; background: rgba(0,0,0,0.7); color: white; padding: 4px 8px; border-radius: 3px; font-size: 0.65rem; z-index: 10; pointer-events: none; }
-        .loader { text-align: center; color: var(--purple); padding: 20px; font-size: 0.9rem; }
-        .empty-state { text-align: center; color: #5e6673; margin-top: 50px; }
-        .error-msg { text-align: center; color: var(--danger); margin-top: 20px; font-size: 0.8rem; }
-        .status-bar { text-align: center; font-size: 0.75rem; color: #848e9c; margin-top: 5px; }
-    </style>
+<html>
+<head><style>
+@font-face {
+  font-family: "Optimistic";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fonts/OptimisticAI_VF_Optimized.woff2") format("woff2");
+}
+@font-face {
+  font-family: "Optimistic Mono";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("/fonts/OptimisticMono_W_TextRegular.woff2") format("woff2");
+}
+:where(html) {
+  font-family: "Optimistic", system-ui, sans-serif;
+}
+:where(code, pre, kbd, samp) {
+  font-family: "Optimistic Mono", ui-monospace, monospace;
+}
+</style>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Breakout Scanner (200) - AUTO PERMANENT ON</title>
+<style>
+body{background:#0f0f12;color:#fff;font-family:system-ui;margin:0;padding:10px}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#1a1a1f;border-radius:8px}
+#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;background:#2a2a35;color:#fff}
+#auto-btn.active{background:#7c5cfc;color:white}
+#refresh-btn{padding:10px 15px;border:none;border-radius:8px;background:#7c5cfc;color:white;font-weight:bold;margin-left:8px}
+table{width:100%;border-collapse:collapse;margin-top:12px;background:#1a1a1f;border-radius:8px;overflow:hidden}
+th{padding:12px;text-align:left;color:#888;font-size:0.8rem;background:#222}
+td{padding:12px;border-top:1px solid #2a2a3a}
+.badge-bull{color:#00ff88;background:rgba(0,255,136,0.1);padding:4px 8px;border-radius:4px;border:1px solid #00ff88}
+.badge-bear{color:#ff4444;background:rgba(255,68,68,0.1);padding:4px 8px;border-radius:4px;border:1px solid #ff4444}
+#status-bar{margin-top:10px;color:#aaa;font-size:0.85rem;text-align:center}
+#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px;border-radius:10px;border:1px solid #333}
+.symbol-col{font-weight:bold}
+</style>
 </head>
 <body>
-<div id="list-view" style="display: flex; flex-direction: column; height: 100%;">
-    <header>
-        <h1> 🔍 Breakout Scanner (200)</h1>
-        <div class="controls">
-            <button id="auto-btn" onclick="toggleAuto()">Auto: OFF</button>
-            <button id="refresh-btn" onclick="startScan()">SCAN</button>
-        </div>
-    </header>
-    <div id="main-content">
-        <div id="loader" class="loader">Scanning Top 200 Futures... (This may take ~60s)</div>
-        <div id="empty-msg" class="empty-state" style="display:none;">No breakouts detected right now.<br>Keep Auto ON to catch new signals.</div>
-        <div id="error-msg" class="error-msg" style="display:none;"></div>
-        <div id="status-bar" class="status-bar"></div>
-        <div class="table-container">
-            <table>
-                <thead>
-                    <tr><th>Coin</th><th>Price</th><th>24h %</th><th>Signal</th></tr>
-                </thead>
-                <tbody id="results-body"></tbody>
-            </table>
-        </div>
-        <div style="text-align:center; color:#5e6673; font-size:0.7rem; margin-top:10px;">Tap any row to view chart • Scans 4H Timeframe</div>
-    </div>
+<header>
+<div>🔍 Breakout Scanner (200) <span style="color:#7c5cfc">AUTO PERMANENT ON</span></div>
+<div>
+<button id="auto-btn" class="active">Auto: ON (90s)</button>
+<button id="refresh-btn" onclick="startScan()">SCAN</button>
 </div>
-<div id="chart-view">
-    <header class="chart-header">
-        <button class="back-btn" onclick="closeChart()">← Back</button>
-        <h1 id="chart-title" style="margin:0; font-size:1rem; color:white;">COIN</h1>
-    </header>
-    <div style="flex:1; display:flex; flex-direction:column;">
-        <div class="chart-box">
-            <div class="chart-hint"> Drag to pan • Pinch to zoom</div>
-            <canvas id="priceChart"></canvas>
-        </div>
-        <div style="text-align:center; color:#5e6673; font-size:0.7rem; margin-top:5px;">Binance Futures | 4H Timeframe</div>
-    </div>
-</div>
+</header>
+<div id="status-bar">Auto-scanning every 90 seconds... (Permanent ON)</div>
+<div id="loader">Scanning Top 200 Futures... (Please wait)</div>
+<div id="empty-msg" style="display:none;text-align:center;padding:20px;color:#666">No breakouts found this scan</div>
+<div id="error-msg" style="display:none;text-align:center;padding:20px;color:#f44"></div>
+<table>
+<thead><tr><th>COIN</th><th>PRICE</th><th>24H %</th><th>SIGNAL</th></tr></thead>
+<tbody id="results-body"></tbody>
+</table>
+
 <script>
-    let myChart = null;
-    let autoInterval = null;
-    let isAutoOn = false;
-    window.onload = startScan;
-    function toggleAuto() {
-        const btn = document.getElementById('auto-btn');
-        const status = document.getElementById('status-bar');
-        if (isAutoOn) {
-            clearInterval(autoInterval);
-            autoInterval = null;
-            isAutoOn = false;
-            btn.innerText = "Auto: OFF";
-            btn.classList.remove('active');
-            status.innerText = "Auto-scan stopped.";
+let myChart = null;
+let autoInterval = null;
+let isAutoOn = true; // PERMANENT ON - was false
+
+window.onload = () => {
+    // AUTO START PERMANENTLY ON LOAD - NO TOUCH NEEDED
+    const btn = document.getElementById('auto-btn');
+    const status = document.getElementById('status-bar');
+    isAutoOn = true;
+    btn.innerText = "Auto: ON (90s)";
+    btn.classList.add('active');
+    status.innerText = "Auto-scanning every 90 seconds... (Permanent ON)";
+    startScan();
+    autoInterval = setInterval(startScan, 90000); // 90s auto
+};
+
+function toggleAuto() {
+    const btn = document.getElementById('auto-btn');
+    const status = document.getElementById('status-bar');
+    if (isAutoOn) {
+        clearInterval(autoInterval);
+        autoInterval = null;
+        isAutoOn = false;
+        btn.innerText = "Auto: OFF";
+        btn.classList.remove('active');
+        status.innerText = "Auto-scan stopped.";
+    } else {
+        isAutoOn = true;
+        btn.innerText = "Auto: ON (90s)";
+        btn.classList.add('active');
+        status.innerText = "Auto-scanning every 90 seconds...";
+        startScan();
+        autoInterval = setInterval(startScan, 90000);
+    }
+}
+document.getElementById('auto-btn').onclick = toggleAuto;
+
+async function startScan() {
+    const btn = document.getElementById('refresh-btn');
+    const loader = document.getElementById('loader');
+    const tbody = document.getElementById('results-body');
+    const emptyMsg = document.getElementById('empty-msg');
+    const errorMsg = document.getElementById('error-msg');
+    const statusBar = document.getElementById('status-bar');
+    if (isAutoOn) btn.disabled = true;
+    loader.style.display = 'block';
+    loader.innerText = "Scanning Top 200 Futures... (Please wait)";
+    tbody.innerHTML = '';
+    emptyMsg.style.display = 'none';
+    errorMsg.style.display = 'none';
+    const startTime = Date.now();
+    try {
+        const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const allCoins = data.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
+        const topCoins = allCoins.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0,200);
+        console.log(`Scanning ${topCoins.length} coins...`);
+        loader.innerText = `Scanning ${topCoins.length} coins...`;
+        let signals = [];
+        for (let i = 0; i < topCoins.length; i += 10) {
+            const batch = topCoins.slice(i, i + 10);
+            const promises = batch.map(coin => checkBreakout(coin));
+            const results = await Promise.all(promises);
+            results.forEach(r => { if (r) signals.push(r); });
+            const progress = Math.min(100, Math.floor((i / topCoins.length)*100));
+            loader.innerText = `Scanning... ${progress}%`;
+            await new Promise(r => setTimeout(r, 250));
+        }
+        loader.style.display = 'none';
+        const scanTime = ((Date.now() - startTime)/1000).toFixed(1);
+        if (isAutoOn) statusBar.innerText = `Last scan: ${scanTime}s ago • ${signals.length} signals • Auto: ON (90s) - Permanent`;
+        if (signals.length === 0) {
+            emptyMsg.style.display = 'block';
         } else {
-            isAutoOn = true;
-            btn.innerText = "Auto: ON (90s)";
-            btn.classList.add('active');
-            status.innerText = "Auto-scanning every 90 seconds...";
-            startScan(); 
-            autoInterval = setInterval(startScan, 90000);
+            signals.sort((a, b) => b.strength - a.strength);
+            signals.forEach(signal => {
+                const row = document.createElement('tr');
+                const changeNum = parseFloat(signal.change) || 0;
+                const changeColor = changeNum >= 0 ? 'var(--accent)' : '#ff6b6b';
+                const badgeClass = signal.type === 'bullish' ? 'badge-bull' : 'badge-bear';
+                const badgeText = signal.type === 'bullish' ? '▲ BREAKOUT' : '▼ DUMP';
+                row.innerHTML = `<td class="symbol-col">${signal.symbol.replace('USDT','')}</td><td>$${parseFloat(signal.price).toFixed(3)}</td><td style="color:${changeColor}">${changeNum>=0?'+':''}${changeNum.toFixed(2)}%</td><td><span class="${badgeClass}">${badgeText}</span></td>`;
+                tbody.appendChild(row);
+            });
         }
-    }
-    async function startScan() {
-        const btn = document.getElementById('refresh-btn');
-        const loader = document.getElementById('loader');
-        const tbody = document.getElementById('results-body');
-        const emptyMsg = document.getElementById('empty-msg');
-        const errorMsg = document.getElementById('error-msg');
-        const statusBar = document.getElementById('status-bar');
-        if (!isAutoOn) btn.disabled = true;
-        loader.style.display = 'block';
-        loader.innerText = "Scanning Top 200 Futures... (Please wait)";
-        tbody.innerHTML = '';
-        emptyMsg.style.display = 'none';
-        errorMsg.style.display = 'none';
-        const startTime = Date.now();
-        try {
-            const res = await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
-            if (!res.ok) throw new Error(`HTTP ${res.status}`);
-            const data = await res.json();
-            const allCoins = data.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('UP') && !t.symbol.includes('DOWN'));
-            const topCoins = allCoins.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0, 200);
-            console.log(` Scanning ${topCoins.length} coins...`);
-            loader.innerText = `Scanning ${topCoins.length} coins...`;
-            let signals = [];
-            for (let i = 0; i < topCoins.length; i += 10) {
-                const batch = topCoins.slice(i, i + 10);
-                const promises = batch.map(coin => checkBreakout(coin));
-                const results = await Promise.all(promises);
-                results.forEach(r => { if (r) signals.push(r); });
-                const progress = Math.min(100, Math.floor((i / topCoins.length) * 100));
-                loader.innerText = `Scanning... ${progress}%`;
-                await new Promise(r => setTimeout(r, 250));
-            }
-            loader.style.display = 'none';
-            const scanTime = ((Date.now() - startTime)/1000).toFixed(1);
-            if (isAutoOn) statusBar.innerText = `Last scan: ${scanTime}s ago • Next in 90s`;
-            if (signals.length === 0) {
-                emptyMsg.style.display = 'block';
-            } else {
-                signals.sort((a, b) => b.strength - a.strength);
-                signals.forEach(signal => {
-                    const row = document.createElement('tr');
-                    row.onclick = () => openChart(signal.symbol, signal.klines, signal.breakoutLevel, signal.type);
-                    const changeNum = parseFloat(signal.change) || 0;
-                    const changeColor = changeNum >= 0 ? 'var(--accent)' : 'var(--danger)';
-                    const badgeClass = signal.type === 'bullish' ? 'badge-bull' : 'badge-bear';
-                    const badgeText = signal.type === 'bullish' ? '▲ BREAKOUT' : '▼ DUMP';
-                    row.innerHTML = `<td class="symbol-col">${signal.symbol.replace('USDT','')}</td><td class="price-col">$${parseFloat(signal.price).toLocaleString()}</td><td class="change-col" style="color:${changeColor}">${changeNum > 0 ? '+' : ''}${changeNum.toFixed(2)}%</td><td class="signal-col"><span class="badge ${badgeClass}">${badgeText}</span></td>`;
-                    tbody.appendChild(row);
-                });
-            }
-        } catch (err) {
-            console.error(" Scan failed:", err);
-            if (!isAutoOn) {
-                errorMsg.innerText = `Error: ${err.message}. Try again.`;
-                errorMsg.style.display = 'block';
-            }
-            loader.style.display = 'none';
-        } finally {
-            if (!isAutoOn) btn.disabled = false;
+    } catch (err) {
+        console.error(" Scan failed:", err);
+        if (!isAutoOn) {
+            errorMsg.innerText = `Error: ${err.message}. Try again.`;
+            errorMsg.style.display = 'block';
         }
+        loader.style.display = 'none';
+    } finally {
+        if (!isAutoOn) btn.disabled = false;
     }
-    async function checkBreakout(coin) {
-        const symbol = coin.symbol;
-        try {
-            const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=20`);
-            if (!kRes.ok) return null;
-            const klines = await kRes.json();
-            if (klines.length < 5) return null;
-            const prices = klines.map(k => parseFloat(k[4]));
-            const highs = klines.map(k => parseFloat(k[2]));
-            const lows = klines.map(k => parseFloat(k[3]));
-            const threshold = 0.01; 
-            const currentPrice = prices[prices.length-1];
-            const prevHighs = [highs[prices.length-2], highs[prices.length-3], highs[prices.length-4]];
-            const prevLows = [lows[prices.length-2], lows[prices.length-3], lows[prices.length-4]];
-            const maxPrevHigh = Math.max(...prevHighs);
-            const minPrevLow = Math.min(...prevLows);
-            let type = null;
-            let strength = 0;
-            let breakoutLevel = 0;
-            if (currentPrice > maxPrevHigh * (1 + threshold)) {
-                type = 'bullish';
-                strength = (currentPrice - maxPrevHigh) / maxPrevHigh;
-                breakoutLevel = maxPrevHigh;
-            } else if (currentPrice < minPrevLow * (1 - threshold)) {
-                type = 'bearish';
-                strength = (minPrevLow - currentPrice) / minPrevLow;
-                breakoutLevel = minPrevLow;
-            }
-            if (type) {
-                return { symbol: symbol, price: coin.lastPrice, change: coin.priceChangePercent, type: type, strength: strength, breakoutLevel: breakoutLevel, klines: klines };
-            }
-            return null;
-        } catch (e) { return null; }
-    }
-    function openChart(symbol, klines, breakoutLevel, type) {
-        document.getElementById('list-view').style.display = 'none';
-        document.getElementById('chart-view').style.display = 'flex';
-        document.getElementById('chart-title').innerText = symbol;
-        renderChart(klines, breakoutLevel, type);
-    }
-    function closeChart() {
-        document.getElementById('chart-view').style.display = 'none';
-        document.getElementById('list-view').style.display = 'flex';
-        if (myChart) myChart.destroy();
-    }
-    function renderChart(klines, breakoutLevel, type) {
-        const ctx = document.getElementById('priceChart').getContext('2d');
-        if (myChart) myChart.destroy();
+}
+
+async function checkBreakout(coin) {
+    const symbol = coin.symbol;
+    try {
+        const kRes = await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=20`);
+        if (!kRes.ok) return null;
+        const klines = await kRes.json();
+        if (klines.length < 5) return null;
         const prices = klines.map(k => parseFloat(k[4]));
-        const labels = klines.map((k, i) => {
-            const d = new Date(k[0]);
-            return d.toLocaleDateString() + ' ' + d.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-        });
-        const breakoutIndex = prices.length - 1;
-        const annotations = [];
-        if (breakoutLevel) {
-            annotations.push({ type: 'line', yMin: breakoutLevel, yMax: breakoutLevel, borderColor: type === 'bullish' ? '#0ecb81' : '#f6465d', borderWidth: 2, borderDash: [6, 6], label: { enabled: true, content: type === 'bullish' ? 'Resistance Break' : 'Support Break', position: 'start', backgroundColor: type === 'bullish' ? '#0ecb81' : '#f6465d', color: 'white', font: { size: 10, weight: 'bold' }, xAdjust: 10, yAdjust: -5 } });
-            annotations.push({ type: 'label', xValue: breakoutIndex, yValue: breakoutLevel, content: type === 'bullish' ? '▲' : '▼', color: type === 'bullish' ? '#0ecb81' : '#f6465d', font: { size: 30, weight: 'bold' }, backgroundColor: 'rgba(0,0,0,0.8)', borderColor: type === 'bullish' ? '#0ecb81' : '#f6465d', borderWidth: 2, borderRadius: 6, padding: 6, xAdjust: 0, yAdjust: type === 'bullish' ? -25 : 25 });
+        const highs = klines.map(k => parseFloat(k[2]));
+        const lows = klines.map(k => parseFloat(k[3]));
+        const threshold = 0.002; // 0.2% - was 0.01 - MORE SIGNALS - AUTO PERMANENT
+        const currentPrice = prices[prices.length-1];
+        const prevHighs = [highs[highs.length-2], highs[highs.length-3], highs[highs.length-4]];
+        const prevLows = [lows[lows.length-2], lows[lows.length-3], lows[lows.length-4]];
+        const maxPrevHigh = Math.max(...prevHighs);
+        const minPrevLow = Math.min(...prevLows);
+        let type = null;
+        let strength = 0;
+        let breakoutLevel = 0;
+        if (currentPrice > maxPrevHigh * (1 + threshold)) {
+            type = 'bullish';
+            strength = (currentPrice - maxPrevHigh) / maxPrevHigh;
+            breakoutLevel = maxPrevHigh;
+        } else if (currentPrice < minPrevLow * (1 - threshold)) {
+            type = 'bearish';
+            strength = (minPrevLow - currentPrice) / minPrevLow;
+            breakoutLevel = minPrevLow;
         }
-        const gradient = ctx.createLinearGradient(0, 0, 0, 400);
-        gradient.addColorStop(0, 'rgba(14, 203, 129, 0.5)');
-        gradient.addColorStop(1, 'rgba(14, 203, 129, 0.0)');
-        myChart = new Chart(ctx, {
-            type: 'line',
-            data: { labels: labels, datasets: [{ label: 'Price', data: prices, borderColor: '#0ecb81', backgroundColor: gradient, borderWidth: 2, pointRadius: 0, fill: true, tension: 0.1 }] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false }, zoom: { pan: { enabled: true, mode: 'x', threshold: 10 }, zoom: { pinch: { enabled: true }, mode: 'x' } }, annotation: { annotations: annotations } }, scales: { x: { grid: { display: false }, ticks: { color: '#5e6673', maxRotation: 0, autoSkip: true } }, y: { position: 'right', grid: { color: '#2b3139' }, ticks: { color: '#5e6673' } } }, interaction: { mode: 'nearest', axis: 'x', intersect: false } }
-        });
-    }
+        if (type) {
+            return { symbol: symbol, price: coin.lastPrice, change: coin.priceChangePercent, type: type, strength: strength, level: breakoutLevel, klines: klines };
+        }
+        return null;
+    } catch (e) { return null; }
+}
 </script>
-</body>
+<script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
 </html>

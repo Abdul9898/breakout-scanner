@@ -22,41 +22,225 @@
   font-family: "Optimistic Mono", ui-monospace, monospace;
 }
 </style>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Breakout Scanner 200 - Auto ON + Telegram</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>Scanner 200 - Chart Fixed Draggable</title>
 <style>
-body{background:#0f0f12;color:#fff;font-family:system-ui;margin:0;padding:10px}
-header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#1a1a1f;border-radius:8px}
-#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;background:#7c5cfc;color:#fff}
-#auto-btn.active{background:#7c5cfc}
+body{background:#0f0f12;color:#fff;font-family:system-ui;margin:0;padding:10px;overflow-x:hidden}
+header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#1a1a1f;border-radius:8px;position:sticky;top:0;z-index:10}
+#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;background:#00ff88;color:#000;cursor:pointer}
 #refresh-btn{padding:10px 15px;border:none;border-radius:8px;background:#7c5cfc;color:#fff;font-weight:bold;margin-left:8px}
 table{width:100%;border-collapse:collapse;margin-top:12px;background:#1a1a1f;border-radius:8px;overflow:hidden}
 th{padding:12px;text-align:left;color:#888;font-size:0.8rem;background:#222}
-td{padding:12px;border-top:1px solid #2a2a3a}
-.badge-bull{color:#00ff88;background:rgba(0,255,136,0.1);padding:4px 8px;border-radius:4px;border:1px solid #00ff88}
-.badge-bear{color:#ff4444;background:rgba(255,68,68,0.1);padding:4px 8px;border-radius:4px;border:1px solid #ff4444}
+td{padding:14px 12px;border-top:1px solid #2a2a3a;cursor:pointer}
+tr:hover{background:#252530}
+.badge-bull{color:#00ff88;background:rgba(0,255,136,0.15);padding:5px 10px;border-radius:6px;border:1px solid #00ff88;font-weight:bold}
+.badge-bear{color:#ff4444;background:rgba(255,68,68,0.15);padding:5px 10px;border-radius:6px;border:1px solid #ff4444;font-weight:bold}
 #status-bar{margin-top:10px;color:#aaa;font-size:0.85rem;text-align:center}
-#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px;border-radius:10px;border:1px solid #333}
+#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px 30px;border-radius:12px;border:1px solid #7c5cfc;z-index:100}
+/* CHART MODAL - DRAGGABLE */
+#chart-modal{display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);z-index:200;flex-direction:column}
+#chart-header{display:flex;justify-content:space-between;align-items:center;padding:12px 15px;background:#1a1a1f;border-bottom:1px solid #333}
+#chart-title{font-weight:bold;font-size:1.1rem}
+#close-chart{background:#ff4444;color:#fff;border:none;padding:8px 16px;border-radius:6px;cursor:pointer;font-weight:bold}
+#chart-container{flex:1;position:relative;overflow:hidden;background:#0f0f12;display:flex;flex-direction:column}
+#price-canvas{width:100%;flex:1;touch-action:none;cursor:grab}
+#price-canvas:active{cursor:grabbing}
+#chart-info{padding:10px 15px;background:#1a1a1f;border-top:1px solid #333;font-size:0.85rem;color:#aaa;display:flex;justify-content:space-between}
+#chart-tip{padding:8px 15px;background:#252530;text-align:center;font-size:0.75rem;color:#888}
 </style>
 </head>
 <body>
 <header>
-<div>🔍 Scanner (200)<br><span style="color:#7c5cfc">AUTO PERMANENT ON + Telegram</span></div>
-<div><button id="auto-btn" class="active">Auto: ON (90s)</button><button id="refresh-btn" onclick="startScan()">SCAN</button></div>
+<div>🔍 Scanner (200)<br><span style="color:#00ff88;font-size:0.85em">AUTO ON + Draggable Chart</span></div>
+<div><button id="auto-btn">Auto: ON (90s)</button><button id="refresh-btn" onclick="startScan()">SCAN</button></div>
 </header>
-<div id="status-bar">Auto-scanning every 90s... Bulk FAPI - Permanent</div>
-<div id="loader">Scanning...</div>
-<div id="empty-msg" style="display:none;text-align:center;padding:20px;color:#666">No breakouts</div>
-<div id="error-msg" style="display:none;text-align:center;padding:20px;color:#f44"></div>
+<div id="status-bar">Click any coin for draggable chart - Auto 90s - Telegram working</div>
+<div id="loader">⚡ Scanning...</div>
+<div id="empty-msg" style="display:none;text-align:center;padding:30px;color:#666">No breakouts - waiting</div>
+<div id="error-msg" style="display:none;text-align:center;padding:20px;color:#ff6b6b"></div>
 <table><thead><tr><th>COIN</th><th>PRICE</th><th>24H %</th><th>SIGNAL</th></tr></thead><tbody id="results-body"></tbody></table>
+
+<div id="chart-modal">
+<div id="chart-header">
+<div id="chart-title">Chart</div>
+<button id="close-chart" onclick="closeChart()">✕ CLOSE</button>
+</div>
+<div id="chart-tip">👆 Drag up/down to zoom price • Drag left/right to pan history • Pinch to zoom</div>
+<div id="chart-container">
+<canvas id="price-canvas"></canvas>
+</div>
+<div id="chart-info">
+<span id="info-price">Price: -</span>
+<span id="info-level">Level: -</span>
+<span id="info-type">-</span>
+</div>
+</div>
+
 <script>
 let autoInterval=null;let isAutoOn=true;
-window.onload=()=>{document.getElementById('auto-btn').innerText="Auto: ON (90s)";startScan();autoInterval=setInterval(startScan,90000);};
-function toggleAuto(){const btn=document.getElementById('auto-btn');const status=document.getElementById('status-bar');if(isAutoOn){clearInterval(autoInterval);isAutoOn=false;btn.innerText="Auto: OFF";status.innerText="Stopped";}else{isAutoOn=true;btn.innerText="Auto: ON (90s)";status.innerText="Auto-scanning...";startScan();autoInterval=setInterval(startScan,90000);}}
-document.getElementById('auto-btn').onclick=toggleAuto;
-async function sendToTelegram(signal){try{const res=await fetch('/api/alert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:signal.symbol,price:signal.price,change:signal.change,type:signal.type,level:signal.level})});const data=await res.json();console.log("Telegram:",signal.symbol,data);return data;}catch(e){console.error(e);}}
-async function startScan(){const loader=document.getElementById('loader');const tbody=document.getElementById('results-body');const emptyMsg=document.getElementById('empty-msg');const errorMsg=document.getElementById('error-msg');const statusBar=document.getElementById('status-bar');loader.style.display='block';tbody.innerHTML='';emptyMsg.style.display='none';errorMsg.style.display='none';const start=Date.now();try{const res=await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');const data=await res.json();const top=data.filter(t=>t.symbol.endsWith('USDT')).sort((a,b)=>parseFloat(b.quoteVolume)-parseFloat(a.quoteVolume)).slice(0,200);let signals=[];for(let i=0;i<top.length;i+=10){const batch=top.slice(i,i+10);const results=await Promise.all(batch.map(c=>checkBreakout(c)));results.forEach(r=>{if(r)signals.push(r);});loader.innerText=`Scanning ${Math.floor(i/top.length*100)}% - ${signals.length} found`;await new Promise(r=>setTimeout(r,200));}loader.style.display='none';statusBar.innerText=`Last: ${((Date.now()-start)/1000).toFixed(1)}s ago • ${signals.length} signals • Auto ON - Permanent + Telegram`;for(const s of signals){await sendToTelegram(s);await new Promise(r=>setTimeout(r,400));}if(signals.length==0)emptyMsg.style.display='block';else{signals.sort((a,b)=>b.strength-a.strength);signals.forEach(sig=>{const row=document.createElement('tr');const ch=parseFloat(sig.change)||0;const col=ch>=0?'#00ff88':'#ff6b6b';const badge=sig.type=='bullish'?'badge-bull':'badge-bear';const txt=sig.type=='bullish'?'▲ BREAKOUT':'▼ DUMP';row.innerHTML=`<td><b>${sig.symbol.replace('USDT','')}</b></td><td>$${parseFloat(sig.price).toFixed(3)}</td><td style="color:${col}">${ch>=0?'+':''}${ch.toFixed(2)}%</td><td><span class="${badge}">${txt}</span></td>`;tbody.appendChild(row);});}}catch(err){console.error(err);errorMsg.innerText=err.message;errorMsg.style.display='block';loader.style.display='none';}}
-async function checkBreakout(coin){try{const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${coin.symbol}&interval=4h&limit=20`);if(!r.ok)return null;const kl=await r.json();if(kl.length<5)return null;const prices=kl.map(k=>parseFloat(k[4]));const highs=kl.map(k=>parseFloat(k[2]));const lows=kl.map(k=>parseFloat(k[3]));const th=0.002;const cur=prices[prices.length-1];const maxH=Math.max(...[highs[highs.length-2],highs[highs.length-3],highs[highs.length-4]]);const minL=Math.min(...[lows[lows.length-2],lows[lows.length-3],lows[lows.length-4]]);let type=null,str=0,lev=0;if(cur>maxH*(1+th)){type='bullish';str=(cur-maxH)/maxH;lev=maxH;}else if(cur<minL*(1-th)){type='bearish';str=(minL-cur)/minL;lev=minL;}if(type)return{symbol:coin.symbol,price:coin.lastPrice,change:coin.priceChangePercent,type:type,strength:str,level:lev};return null;}catch(e){return null;}}
+let currentKlines=[];let currentLevel=0;let currentSymbol='';let scale=1;let offsetX=0;let offsetY=0;
+let isDragging=false;let lastX=0;let lastY=0;
+
+window.onload=()=>{startScan();autoInterval=setInterval(startScan,90000);};
+document.getElementById('auto-btn').onclick=()=>{const btn=document.getElementById('auto-btn');const s=document.getElementById('status-bar');if(isAutoOn){clearInterval(autoInterval);isAutoOn=false;btn.innerText="Auto: OFF";btn.style.background="#444";s.innerText="Auto OFF";}else{isAutoOn=true;btn.innerText="Auto: ON (90s)";btn.style.background="#00ff88";s.innerText="Auto ON (90s)";startScan();autoInterval=setInterval(startScan,90000);}};
+
+function closeChart(){document.getElementById('chart-modal').style.display='none';}
+
+async function openChart(symbol, level, type, klinesFromRow){
+    currentSymbol=symbol;currentLevel=level;
+    document.getElementById('chart-title').innerText=symbol+" - 4H - "+type;
+    document.getElementById('info-level').innerText="Breakout: $"+parseFloat(level).toFixed(4);
+    document.getElementById('info-type').innerText=type;
+    document.getElementById('chart-modal').style.display='flex';
+    scale=1;offsetX=0;offsetY=0;
+    try{
+        // Fetch fresh klines for chart
+        const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${symbol}&interval=4h&limit=100`);
+        const kl=await r.json();
+        currentKlines=kl;
+        drawChart();
+    }catch(e){
+        // Use klines from row if fetch fails
+        if(klinesFromRow){currentKlines=klinesFromRow;drawChart();}
+    }
+}
+
+function drawChart(){
+    const canvas=document.getElementById('price-canvas');
+    const ctx=canvas.getContext('2d');
+    const rect=canvas.parentElement.getBoundingClientRect();
+    canvas.width=rect.width*2;canvas.height=rect.height*2;
+    canvas.style.width=rect.width+'px';canvas.style.height=rect.height+'px';
+    ctx.scale(2,2);
+    const W=rect.width;const H=rect.height;
+    ctx.clearRect(0,0,W,H);
+    if(currentKlines.length<2) return;
+    const closes=currentKlines.map(k=>parseFloat(k[4]));
+    const highs=currentKlines.map(k=>parseFloat(k[2]));
+    const lows=currentKlines.map(k=>parseFloat(k[3]));
+    let min=Math.min(...lows,currentLevel)*0.998;
+    let max=Math.max(...highs,currentLevel)*1.002;
+    // Apply zoom/pan
+    const range=max-min;
+    const mid=(max+min)/2;
+    const zoomedRange=range/scale;
+    min=mid-zoomedRange/2+offsetY*range*0.001;
+    max=mid+zoomedRange/2+offsetY*range*0.001;
+    // Background grid
+    ctx.strokeStyle='#222';ctx.lineWidth=0.5;
+    for(let i=1;i<5;i++){ctx.beginPath();ctx.moveTo(0,H*i/5);ctx.lineTo(W,H*i/5);ctx.stroke();}
+    // Breakout level line
+    const levelY=H-((currentLevel-min)/(max-min))*H;
+    ctx.strokeStyle=currentSymbol.includes('BULL')||document.getElementById('info-type').innerText==='bullish'?'#00ff88':'#ff4444';
+    if(document.getElementById('chart-title').innerText.includes('bullish')||document.getElementById('chart-title').innerText.includes('BREAKOUT')||document.getElementById('info-type').innerText==='bullish') ctx.strokeStyle='#00ff88'; else if(document.getElementById('info-type').innerText==='bearish') ctx.strokeStyle='#ff4444';
+    ctx.setLineDash([6,4]);ctx.lineWidth=1.5;ctx.beginPath();ctx.moveTo(0,levelY);ctx.lineTo(W,levelY);ctx.stroke();ctx.setLineDash([]);
+    ctx.fillStyle=ctx.strokeStyle;ctx.font='11px system-ui';ctx.fillText('Level $'+currentLevel.toFixed(4),5,levelY-5);
+    // Price line
+    ctx.strokeStyle='#7c5cfc';ctx.lineWidth=2;ctx.beginPath();
+    const visibleCount=Math.floor(100/scale);
+    const start=Math.max(0,currentKlines.length-visibleCount+Math.floor(offsetX/10));
+    const slice=closes.slice(start);
+    slice.forEach((p,i)=>{
+        const x=(i/slice.length)*W;
+        const y=H-((p-min)/(max-min))*H;
+        if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    });
+    ctx.stroke();
+    // Candles (simple)
+    ctx.fillStyle='#888';
+    slice.slice(-50).forEach((_,i)=>{
+        const idx=start+i;
+        if(idx>=currentKlines.length) return;
+        const k=currentKlines[idx];
+        const o=parseFloat(k[1]),h=parseFloat(k[2]),l=parseFloat(k[3]),c=parseFloat(k[4]);
+        const x=(i/slice.slice(-50).length)*W;
+        const yO=H-((o-min)/(max-min))*H;
+        const yC=H-((c-min)/(max-min))*H;
+        const yH=H-((h-min)/(max-min))*H;
+        const yL=H-((l-min)/(max-min))*H;
+        ctx.strokeStyle=c>=o?'#00ff88':'#ff4444';
+        ctx.fillStyle=ctx.strokeStyle;
+        ctx.beginPath();ctx.moveTo(x,(yH+yL)/2);ctx.lineTo(x,yH);ctx.moveTo(x,(yH+yL)/2);ctx.lineTo(x,yL);ctx.stroke();
+        ctx.fillRect(x-2,Math.min(yO,yC),4,Math.abs(yO-yC)||1);
+    });
+    // Current price dot
+    const last=closes[closes.length-1];
+    const lastY=H-((last-min)/(max-min))*H;
+    ctx.fillStyle='#fff';ctx.beginPath();ctx.arc(W-20,lastY,4,0,Math.PI*2);ctx.fill();
+    document.getElementById('info-price').innerText='Price: $'+last.toFixed(4);
+}
+
+const canvasEl=document.getElementById('price-canvas');
+canvasEl.addEventListener('pointerdown',e=>{isDragging=true;lastX=e.clientX;lastY=e.clientY;canvasEl.setPointerCapture(e.pointerId);});
+canvasEl.addEventListener('pointermove',e=>{
+    if(!isDragging) return;
+    const dx=e.clientX-lastX;const dy=e.clientY-lastY;
+    offsetX-=dx;offsetY+=dy;
+    lastX=e.clientX;lastY=e.clientY;
+    drawChart();
+});
+canvasEl.addEventListener('pointerup',()=>{isDragging=false;});
+canvasEl.addEventListener('wheel',e=>{
+    e.preventDefault();
+    if(e.deltaY<0) scale=Math.min(5,scale*1.1); else scale=Math.max(0.5,scale*0.9);
+    drawChart();
+},{passive:false});
+
+async function sendToTelegram(signal){
+    try{await fetch('/api/alert',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({symbol:signal.symbol,price:signal.price,change:signal.change,type:signal.type,level:signal.level})});}catch(e){}
+}
+
+async function startScan(){
+    const loader=document.getElementById('loader');const tbody=document.getElementById('results-body');const emptyMsg=document.getElementById('empty-msg');const errorMsg=document.getElementById('error-msg');const statusBar=document.getElementById('status-bar');const btn=document.getElementById('refresh-btn');
+    loader.style.display='block';tbody.innerHTML='';emptyMsg.style.display='none';errorMsg.style.display='none';btn.disabled=true;
+    const start=Date.now();
+    try{
+        const res=await fetch('https://fapi.binance.com/fapi/v1/ticker/24hr');
+        const data=await res.json();
+        const top=data.filter(t=>t.symbol.endsWith('USDT')).sort((a,b)=>parseFloat(b.quoteVolume)-parseFloat(a.quoteVolume)).slice(0,200);
+        const promises=top.map(c=>checkBreakout(c));
+        const results=await Promise.all(promises);
+        let signals=results.filter(r=>r);
+        const t=((Date.now()-start)/1000).toFixed(1);
+        loader.style.display='none';btn.disabled=false;
+        statusBar.innerText=`Last: ${t}s ago • ${signals.length} signals • Click coin for draggable chart • Auto ON`;
+        for(const s of signals){await sendToTelegram(s);await new Promise(r=>setTimeout(r,200));}
+        if(signals.length==0) emptyMsg.style.display='block';
+        else{
+            signals.sort((a,b)=>b.strength-a.strength);
+            signals.forEach(sig=>{
+                const row=document.createElement('tr');
+                row.onclick=()=>openChart(sig.symbol,sig.level,sig.type,sig.klines);
+                const ch=parseFloat(sig.change)||0;
+                const col=ch>=0?'#00ff88':'#ff6b6b';
+                const badge=sig.type==='bullish'?'badge-bull':'badge-bear';
+                const txt=sig.type==='bullish'?'▲ BREAKOUT':'▼ DUMP';
+                row.innerHTML=`<td><b>${sig.symbol.replace('USDT','')}</b></td><td>$${parseFloat(sig.price).toFixed(parseFloat(sig.price)<0.01?6:3)}</td><td style="color:${col}">${ch>=0?'+':''}${ch.toFixed(2)}%</td><td><span class="${badge}">${txt}</span></td>`;
+                tbody.appendChild(row);
+            });
+        }
+    }catch(err){
+        loader.style.display='none';btn.disabled=false;
+        errorMsg.innerText='Scan failed - backend still sending Telegram';errorMsg.style.display='block';
+    }
+}
+
+async function checkBreakout(coin){
+    try{
+        const r=await fetch(`https://fapi.binance.com/fapi/v1/klines?symbol=${coin.symbol}&interval=4h&limit=20`);
+        if(!r.ok) return null;
+        const kl=await r.json();if(kl.length<5) return null;
+        const prices=kl.map(k=>parseFloat(k[4]));const highs=kl.map(k=>parseFloat(k[2]));const lows=kl.map(k=>parseFloat(k[3]));
+        const th=0.002;const cur=prices[prices.length-1];
+        const maxH=Math.max(...[highs[highs.length-2],highs[highs.length-3],highs[highs.length-4]]);
+        const minL=Math.min(...[lows[lows.length-2],lows[lows.length-3],lows[lows.length-4]]);
+        let type=null,str=0,lev=0;
+        if(cur>maxH*(1+th)){type='bullish';str=(cur-maxH)/maxH;lev=maxH;}
+        else if(cur<minL*(1-th)){type='bearish';str=(minL-cur)/minL;lev=minL;}
+        if(type) return {symbol:coin.symbol,price:coin.lastPrice,change:coin.priceChangePercent,type:type,strength:str,level:lev,klines:kl};
+        return null;
+    }catch(e){return null;}
+}
 </script>
 <script>(function(){var loc=location.href.replace(/#.*$/,"");var ATTR_NAMES=["data-product-id","data-productid","data-product_id","product-id","productid","product_id","data-source-entity-id","source-entity-id","source_entity_id","data-product","data-metadata","data-meta"];var DATASET_KEYS=["productId","productid","product_id","sourceEntityId","sourceentityid","source_entity_id","product","metadata","meta"];function readProductId(value){if(typeof value!=="string"||value.length===0)return null;if(/^[0-9]{6,}$/.test(value))return value;var match=value.match(/(?:product(?:_|-)?id|source(?:_|-)?entity(?:_|-)?id)["'=:\s]+([0-9]{6,})/i);return match?match[1]:null}function extractProductId(start){for(var node=start;node&&node!==document.body;node=node.parentElement){for(var i=0;i<ATTR_NAMES.length;i++){var attrValue=node.getAttribute&&node.getAttribute(ATTR_NAMES[i]);var attrProductId=readProductId(attrValue);if(attrProductId)return attrProductId}var dataset=node.dataset||null;if(dataset){for(var j=0;j<DATASET_KEYS.length;j++){var dataValue=dataset[DATASET_KEYS[j]];var dataProductId=readProductId(dataValue);if(dataProductId)return dataProductId}}}return null}function isInlineMediaSlotElement(node){return !!(node&&node.getAttribute&&node.getAttribute("data-clippy-inline-media-slot")!==null)}function findInlineMediaSlot(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(isInlineMediaSlotElement(node))return node}return null}function readInlineMediaUrl(node){if(!node)return null;return node.getAttribute&&((node.getAttribute("data-clippy-inline-media-url")||node.getAttribute("data-url")||node.getAttribute("data_url")))||node.href||null}function stripHash(url){return String(url).replace(/#.*$/,"")}function urlsMatch(a,b){if(!a||!b)return false;try{return stripHash(new URL(a,loc).href)===stripHash(new URL(b,loc).href)}catch(_){return stripHash(a)===stripHash(b)}}function isFirstPartyReelUrl(value){try{var url=new URL(value,loc);if(url.protocol!=="https:")return false;var host=url.hostname.toLowerCase();var supported=host==="instagram.com"||host.endsWith(".instagram.com")||host==="facebook.com"||host.endsWith(".facebook.com");return supported&&/\/reels?\//i.test(url.pathname)}catch(_){return false}}function isInlineMediaUrlClick(node,href){var slot=findInlineMediaSlot(node);if(!slot)return false;var slotUrl=readInlineMediaUrl(slot);if(slotUrl)return urlsMatch(href,slotUrl);return isFirstPartyReelUrl(href)}function findDataHref(start){for(var node=start;node&&node!==document.body;node=node.parentElement){if(node.getAttribute){var href=node.getAttribute("data-href")||node.getAttribute("data-url");if(href)return{href:href,node:node}}}return null}var nativeOpen=window.open;window.open=function(url){if(parent!==window&&typeof url==="string"&&/^https?:\/\//.test(url)){parent.postMessage({type:"ecto:usercontent-link-click",href:url},"*");return null}return nativeOpen?nativeOpen.apply(window,arguments):null};document.addEventListener("click",function(e){var target=e.target instanceof Element?e.target:null;if(!target)return;if(parent===window)return;var a=target.closest?target.closest("a[href]"):null;if(a&&a.href&&/^https?:\/\//.test(a.href)&&a.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(a,a.href))return;var productId=extractProductId(target)||extractProductId(a);if(productId){e.preventDefault();parent.postMessage({type:"ecto-artifact-link-click",productId:productId},"*");return}e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:a.href},"*");return}var dataHref=findDataHref(target);if(dataHref&&/^https?:\/\//.test(dataHref.href)&&dataHref.href.replace(/#.*$/,"")!==loc){if(isInlineMediaUrlClick(dataHref.node,dataHref.href))return;e.preventDefault();parent.postMessage({type:"ecto:usercontent-link-click",href:dataHref.href},"*")}},true)})();</script><script>(function(){var FOCUS_TYPE="ecto:artifact-focus-request";var CLOSE_TYPE="ecto:artifact-close-request";function focusArtifactDocument(){var body=document.body;if(!body)return;try{window.focus();}catch(e){}if(!body.hasAttribute("tabindex"))body.setAttribute("tabindex","-1");try{body.focus({preventScroll:true});}catch(e){try{body.focus();}catch(e2){}}}window.addEventListener("message",function(event){if(event.source!==window.parent)return;var data=event.data;if(!data||typeof data!=="object"||data.type!==FOCUS_TYPE)return;if(document.readyState==="loading"){document.addEventListener("DOMContentLoaded",focusArtifactDocument,{once:true});return;}focusArtifactDocument();});window.addEventListener("keydown",function(event){if(event.key!=="Escape")return;window.setTimeout(function(){if(event.defaultPrevented)return;window.parent.postMessage({type:CLOSE_TYPE},"*");},0);});})();</script></body>
 </html>

@@ -23,12 +23,12 @@
 }
 </style>
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Breakout Scanner (200) - AUTO PERMANENT ON</title>
+<title>Breakout Scanner (200) - AUTO PERMANENT ON + Telegram</title>
 <style>
 body{background:#0f0f12;color:#fff;font-family:system-ui;margin:0;padding:10px}
 header{display:flex;justify-content:space-between;align-items:center;padding:10px;background:#1a1a1f;border-radius:8px}
-#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;background:#2a2a35;color:#fff}
-#auto-btn.active{background:#7c5cfc;color:white}
+#auto-btn{padding:10px 15px;border:none;border-radius:8px;font-weight:bold;cursor:pointer;background:#7c5cfc;color:white}
+#auto-btn.active{background:#7c5cfc}
 #refresh-btn{padding:10px 15px;border:none;border-radius:8px;background:#7c5cfc;color:white;font-weight:bold;margin-left:8px}
 table{width:100%;border-collapse:collapse;margin-top:12px;background:#1a1a1f;border-radius:8px;overflow:hidden}
 th{padding:12px;text-align:left;color:#888;font-size:0.8rem;background:#222}
@@ -36,19 +36,19 @@ td{padding:12px;border-top:1px solid #2a2a3a}
 .badge-bull{color:#00ff88;background:rgba(0,255,136,0.1);padding:4px 8px;border-radius:4px;border:1px solid #00ff88}
 .badge-bear{color:#ff4444;background:rgba(255,68,68,0.1);padding:4px 8px;border-radius:4px;border:1px solid #ff4444}
 #status-bar{margin-top:10px;color:#aaa;font-size:0.85rem;text-align:center}
-#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px;border-radius:10px;border:1px solid #333}
+#loader{display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#1a1a1f;padding:20px;border-radius:10px;border:1px solid #333;z-index:100}
 .symbol-col{font-weight:bold}
 </style>
 </head>
 <body>
 <header>
-<div>🔍 Breakout Scanner (200) <span style="color:#7c5cfc">AUTO PERMANENT ON</span></div>
+<div>🔍 Breakout Scanner (200)<br><span style="color:#7c5cfc;font-size:0.9em">AUTO PERMANENT ON + Telegram</span></div>
 <div>
 <button id="auto-btn" class="active">Auto: ON (90s)</button>
 <button id="refresh-btn" onclick="startScan()">SCAN</button>
 </div>
 </header>
-<div id="status-bar">Auto-scanning every 90 seconds... (Permanent ON)</div>
+<div id="status-bar">Auto-scanning every 90 seconds... (Permanent ON + Telegram)</div>
 <div id="loader">Scanning Top 200 Futures... (Please wait)</div>
 <div id="empty-msg" style="display:none;text-align:center;padding:20px;color:#666">No breakouts found this scan</div>
 <div id="error-msg" style="display:none;text-align:center;padding:20px;color:#f44"></div>
@@ -58,20 +58,18 @@ td{padding:12px;border-top:1px solid #2a2a3a}
 </table>
 
 <script>
-let myChart = null;
 let autoInterval = null;
-let isAutoOn = true; // PERMANENT ON - was false
+let isAutoOn = true;
 
 window.onload = () => {
-    // AUTO START PERMANENTLY ON LOAD - NO TOUCH NEEDED
     const btn = document.getElementById('auto-btn');
     const status = document.getElementById('status-bar');
     isAutoOn = true;
     btn.innerText = "Auto: ON (90s)";
     btn.classList.add('active');
-    status.innerText = "Auto-scanning every 90 seconds... (Permanent ON)";
+    status.innerText = "Auto-scanning every 90 seconds... (Permanent ON + Telegram)";
     startScan();
-    autoInterval = setInterval(startScan, 90000); // 90s auto
+    autoInterval = setInterval(startScan, 90000);
 };
 
 function toggleAuto() {
@@ -88,12 +86,35 @@ function toggleAuto() {
         isAutoOn = true;
         btn.innerText = "Auto: ON (90s)";
         btn.classList.add('active');
-        status.innerText = "Auto-scanning every 90 seconds...";
+        status.innerText = "Auto-scanning every 90 seconds... (Permanent ON + Telegram)";
         startScan();
         autoInterval = setInterval(startScan, 90000);
     }
 }
 document.getElementById('auto-btn').onclick = toggleAuto;
+
+async function sendToTelegram(signal) {
+    try {
+        // Send to backend which forwards to Telegram - fixes CORS and keeps token secret
+        const res = await fetch('/api/alert', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({
+                symbol: signal.symbol,
+                price: signal.price,
+                change: signal.change,
+                type: signal.type,
+                level: signal.level || signal.price
+            })
+        });
+        const data = await res.json();
+        console.log(`Telegram ${signal.symbol}:`, data);
+        return data;
+    } catch (e) {
+        console.error("Telegram send failed", e);
+        return null;
+    }
+}
 
 async function startScan() {
     const btn = document.getElementById('refresh-btn');
@@ -115,7 +136,6 @@ async function startScan() {
         const data = await res.json();
         const allCoins = data.filter(t => t.symbol.endsWith('USDT') && !t.symbol.includes('_'));
         const topCoins = allCoins.sort((a, b) => parseFloat(b.quoteVolume) - parseFloat(a.quoteVolume)).slice(0,200);
-        console.log(`Scanning ${topCoins.length} coins...`);
         loader.innerText = `Scanning ${topCoins.length} coins...`;
         let signals = [];
         for (let i = 0; i < topCoins.length; i += 10) {
@@ -124,12 +144,19 @@ async function startScan() {
             const results = await Promise.all(promises);
             results.forEach(r => { if (r) signals.push(r); });
             const progress = Math.min(100, Math.floor((i / topCoins.length)*100));
-            loader.innerText = `Scanning... ${progress}%`;
+            loader.innerText = `Scanning... ${progress}% - Found ${signals.length}`;
             await new Promise(r => setTimeout(r, 250));
         }
         loader.style.display = 'none';
         const scanTime = ((Date.now() - startTime)/1000).toFixed(1);
-        if (isAutoOn) statusBar.innerText = `Last scan: ${scanTime}s ago • ${signals.length} signals • Auto: ON (90s) - Permanent`;
+        if (isAutoOn) statusBar.innerText = `Last scan: ${scanTime}s ago • ${signals.length} signals • Auto: ON (90s) - Permanent + Telegram`;
+
+        // SEND TO TELEGRAM FOR EACH SIGNAL FOUND ON WEBSITE
+        for (const sig of signals) {
+            await sendToTelegram(sig);
+            await new Promise(r => setTimeout(r, 500)); // avoid spam
+        }
+
         if (signals.length === 0) {
             emptyMsg.style.display = 'block';
         } else {
@@ -137,7 +164,7 @@ async function startScan() {
             signals.forEach(signal => {
                 const row = document.createElement('tr');
                 const changeNum = parseFloat(signal.change) || 0;
-                const changeColor = changeNum >= 0 ? 'var(--accent)' : '#ff6b6b';
+                const changeColor = changeNum >= 0 ? '#00ff88' : '#ff6b6b';
                 const badgeClass = signal.type === 'bullish' ? 'badge-bull' : 'badge-bear';
                 const badgeText = signal.type === 'bullish' ? '▲ BREAKOUT' : '▼ DUMP';
                 row.innerHTML = `<td class="symbol-col">${signal.symbol.replace('USDT','')}</td><td>$${parseFloat(signal.price).toFixed(3)}</td><td style="color:${changeColor}">${changeNum>=0?'+':''}${changeNum.toFixed(2)}%</td><td><span class="${badgeClass}">${badgeText}</span></td>`;
@@ -146,10 +173,8 @@ async function startScan() {
         }
     } catch (err) {
         console.error(" Scan failed:", err);
-        if (!isAutoOn) {
-            errorMsg.innerText = `Error: ${err.message}. Try again.`;
-            errorMsg.style.display = 'block';
-        }
+        errorMsg.innerText = `Error: ${err.message}. Try again.`;
+        errorMsg.style.display = 'block';
         loader.style.display = 'none';
     } finally {
         if (!isAutoOn) btn.disabled = false;
@@ -166,7 +191,7 @@ async function checkBreakout(coin) {
         const prices = klines.map(k => parseFloat(k[4]));
         const highs = klines.map(k => parseFloat(k[2]));
         const lows = klines.map(k => parseFloat(k[3]));
-        const threshold = 0.002; // 0.2% - was 0.01 - MORE SIGNALS - AUTO PERMANENT
+        const threshold = 0.002;
         const currentPrice = prices[prices.length-1];
         const prevHighs = [highs[highs.length-2], highs[highs.length-3], highs[highs.length-4]];
         const prevLows = [lows[lows.length-2], lows[lows.length-3], lows[lows.length-4]];
@@ -185,7 +210,7 @@ async function checkBreakout(coin) {
             breakoutLevel = minPrevLow;
         }
         if (type) {
-            return { symbol: symbol, price: coin.lastPrice, change: coin.priceChangePercent, type: type, strength: strength, level: breakoutLevel, klines: klines };
+            return { symbol: symbol, price: coin.lastPrice, change: coin.priceChangePercent, type: type, strength: strength, level: breakoutLevel };
         }
         return null;
     } catch (e) { return null; }
